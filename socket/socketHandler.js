@@ -300,6 +300,61 @@ const socketHandler = (io) => {
       }
     });
 
+    // Handle call cancellation by therapist ID (for temp callIds)
+    socket.on('cancel-call-request', async (data) => {
+      try {
+        const { therapistId, reason } = data;
+        console.log('Cancel call request received:', data, 'from user:', socket.user?.phoneNumber);
+        
+        if (socket.userType !== 'user') {
+          console.log('Cancel call request ignored - not from user');
+          return;
+        }
+
+        // Find active call by therapist ID and user ID
+        let targetCallId = null;
+        let targetCallData = null;
+
+        for (const [callId, callData] of activeCalls) {
+          if (callData.userId === socket.user._id.toString() && 
+              callData.therapistId === therapistId) {
+            targetCallId = callId;
+            targetCallData = callData;
+            console.log('Found call to cancel:', callId);
+            break;
+          }
+        }
+
+        if (!targetCallId || !targetCallData) {
+          console.log('No active call found to cancel for therapist:', therapistId);
+          return;
+        }
+
+        // Update database
+        await Call.findByIdAndUpdate(targetCallId, {
+          status: 'cancelled',
+          endTime: new Date()
+        });
+
+        // Notify therapist that call was cancelled
+        if (targetCallData.therapistSocketId) {
+          io.to(targetCallData.therapistSocketId).emit('call-cancelled', {
+            callId: targetCallId,
+            reason: reason || 'user cancelled the call',
+            cancelledBy: 'user'
+          });
+          console.log('Sent call cancellation to therapist socket:', targetCallData.therapistSocketId);
+        }
+
+        // Clean up active call
+        activeCalls.delete(targetCallId);
+        console.log('Call cancelled successfully:', targetCallId);
+
+      } catch (error) {
+        console.error('Cancel call request error:', error);
+      }
+    });
+
     socket.on('end-call', async (data) => {
       try {
         const { callId, duration, endedBy } = data;

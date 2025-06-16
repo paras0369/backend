@@ -3,17 +3,19 @@ const jwt = require('jsonwebtoken');
 const twilio = require('twilio');
 const User = require('../models/User');
 const Therapist = require('../models/Therapist');
-const { 
-  validatePhoneNumber, 
-  validateOTP, 
-  checkOTPRateLimit 
+const {
+  validatePhoneNumber,
+  validateOTP,
+  checkOTPRateLimit,
 } = require('../utils/validation');
 
 const router = express.Router();
 
 // Add error checking for Twilio credentials
 if (!process.env.TWILIO_ACCOUNT_SID || !process.env.TWILIO_AUTH_TOKEN) {
-  console.warn('Twilio credentials are missing. SMS functionality will be limited to development mode.');
+  console.warn(
+    'Twilio credentials are missing. SMS functionality will be limited to development mode.',
+  );
 }
 
 let twilioClient = null;
@@ -21,7 +23,7 @@ try {
   if (process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN) {
     twilioClient = twilio(
       process.env.TWILIO_ACCOUNT_SID,
-      process.env.TWILIO_AUTH_TOKEN
+      process.env.TWILIO_AUTH_TOKEN,
     );
     console.log('Twilio client initialized successfully');
   }
@@ -69,7 +71,9 @@ router.post('/send-otp', async (req, res) => {
     // Only attempt to send SMS if we're in production AND have valid Twilio credentials
     if (process.env.NODE_ENV === 'production' && twilioClient) {
       try {
-        const formattedPhoneNumber = phoneNumber.startsWith('+') ? phoneNumber : `+${phoneNumber}`;
+        const formattedPhoneNumber = phoneNumber.startsWith('+')
+          ? phoneNumber
+          : `+${phoneNumber}`;
         await twilioClient.messages.create({
           body: `Your TherapyCall verification code is: ${otp}`,
           from: process.env.TWILIO_PHONE_NUMBER,
@@ -81,7 +85,7 @@ router.post('/send-otp', async (req, res) => {
         return res.json({
           success: true,
           message: 'OTP generated successfully (SMS delivery failed)',
-          devMode: true
+          devMode: true,
         });
       }
     }
@@ -89,14 +93,14 @@ router.post('/send-otp', async (req, res) => {
     res.json({
       success: true,
       message: 'OTP sent successfully',
-      devMode: process.env.NODE_ENV !== 'production'
+      devMode: process.env.NODE_ENV !== 'production',
     });
   } catch (error) {
     console.error('Send OTP error:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to send OTP',
-      error: error.message
+      error: error.message,
     });
   }
 });
